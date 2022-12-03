@@ -11,6 +11,7 @@ import { PasswordTokenRepository } from '../repository/password.token.repository
 import { RefreshTokenRepository } from '../repository/refresh.token.repository';
 import { firstValueFrom } from 'rxjs';
 import * as bcrypt from 'bcryptjs';
+import { AuthRequest } from "../proto/auth.pb";
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -48,7 +49,7 @@ export class AuthService implements OnModuleInit {
     return undefined;
   }
 
-  auth(payload) {
+  public async auth(req) {
     return undefined;
   }
 
