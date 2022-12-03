@@ -1,6 +1,6 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfirmationTokenRepository } from '../repository/confirmation.token.repository';
-import { RegisterRequestDto } from '../dto/auth.user.dto';
+import { LoginRequestDto, RegisterRequestDto } from '../dto/auth.user.dto';
 import {
   CreateUserResponse,
   USER_SERVICE_NAME,
@@ -33,17 +33,18 @@ export class AuthService implements OnModuleInit {
   }
 
   public async register(dto: RegisterRequestDto) {
+    const candidate = await this.checkData(dto);
+    if (candidate)
+      return { error: [candidate], status: HttpStatus.BAD_REQUEST };
+
     dto.password = await bcrypt.hash(dto.password, 5);
     const response: CreateUserResponse = await firstValueFrom(
-      dto.inn == '' && dto.link == ''
-        ? this.userSvc.create(dto)
-        : this.userSvc.createUr(dto),
+      this.userSvc.create(dto),
     );
-
     return { error: ['none'], status: 200 };
   }
 
-  login(payload) {
+  public async login(dto: LoginRequestDto) {
     return undefined;
   }
 
@@ -51,7 +52,24 @@ export class AuthService implements OnModuleInit {
     return undefined;
   }
 
-  registerUr(payload) {
-    return undefined;
+  private async checkData(dto: RegisterRequestDto): Promise<string> {
+    if (
+      !!(await firstValueFrom(this.userSvc.findByLogin({ login: dto.login })))
+        .user
+    )
+      return 'Пользователь с таким логином уже существует';
+    if (
+      !!(await firstValueFrom(this.userSvc.findByPhone({ phone: dto.phone })))
+        .user
+    )
+      return 'Пользователь с таким телефоном уже существует';
+    if (
+      !!(await firstValueFrom(this.userSvc.findByEmail({ email: dto.email })))
+        .user
+    )
+      return 'Пользователь с такой эл. почтой уже существует';
+    if (!!(await firstValueFrom(this.userSvc.findByInn({ inn: dto.inn }))).user)
+      return 'Пользователь с таким инн уже существует';
+    return null;
   }
 }

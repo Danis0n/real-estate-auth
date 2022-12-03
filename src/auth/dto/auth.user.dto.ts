@@ -1,4 +1,4 @@
-import { RegisterRequest } from '../proto/auth.pb';
+import { LoginRequest, RegisterRequest } from '../proto/auth.pb';
 
 export class RegisterRequestDto implements RegisterRequest {
   public readonly dateOfBirth: string;
@@ -10,4 +10,9 @@ export class RegisterRequestDto implements RegisterRequest {
   public password: string;
   public readonly phone: string;
   public readonly link: string;
+}
+
+export class LoginRequestDto implements LoginRequest {
+  readonly login: string;
+  readonly password: string;
 }

@@ -20,11 +20,6 @@ export class AuthController {
     return this.authService.register(payload);
   }
 
-  @GrpcMethod(AUTH_SERVICE_NAME, 'RegisterUr')
-  private async registerUr(payload): Promise<RegisterResponse> {
-    return this.authService.registerUr(payload);
-  }
-
   @GrpcMethod(AUTH_SERVICE_NAME, 'Login')
   private async login(payload): Promise<LoginResponse> {
     return this.authService.login(payload);
