@@ -11,6 +11,11 @@ import { PasswordTokenRepository } from './repository/password.token.repository'
 import { AuthUtil } from './util/auth.util';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { USER_PACKAGE_NAME, USER_SERVICE_NAME } from './proto/user.pb';
+import { JwtModule } from '@nestjs/jwt';
+import { JwtService } from './service/jwt.service';
+import { RefreshTokenMapper } from './mapper/refresh.token.mapper';
+import { RoleMapper } from './mapper/role.mapper';
+import { JwtStrategy } from './strategy/jwt.strategy';
 
 @Module({
   controllers: [AuthController],
@@ -20,6 +25,10 @@ import { USER_PACKAGE_NAME, USER_SERVICE_NAME } from './proto/user.pb';
     RefreshTokenRepository,
     PasswordTokenRepository,
     AuthUtil,
+    JwtService,
+    RefreshTokenMapper,
+    RoleMapper,
+    JwtStrategy,
   ],
   imports: [
     TypeOrmModule.forFeature([ConfirmationToken, RefreshToken, PasswordToken]),
@@ -34,6 +43,9 @@ import { USER_PACKAGE_NAME, USER_SERVICE_NAME } from './proto/user.pb';
         },
       },
     ]),
+    JwtModule.register({
+      secret: `${process.env.SECRET}`,
+    }),
   ],
 })
 export class AuthModule {}

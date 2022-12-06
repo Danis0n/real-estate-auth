@@ -32,11 +32,11 @@ export class AuthController {
 
   @GrpcMethod(AUTH_SERVICE_NAME, 'Validate')
   private async validate(payload): Promise<ValidateResponse> {
-    return this.authService.auth(payload);
+    return this.authService.validate(payload);
   }
 
   @GrpcMethod(AUTH_SERVICE_NAME, 'Logout')
   private async logout(payload): Promise<LogoutResponse> {
-    return this.authService.auth(payload);
+    return this.authService.logout(payload);
   }
 }

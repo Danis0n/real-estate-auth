@@ -13,4 +13,8 @@ export class RefreshTokenRepository {
   public async findByTokenValue(token: string): Promise<RefreshToken> {
     return this.refreshTokenRepository.findOne({ where: { token: token } });
   }
+
+  public async deleteTokensByUser(uuid: string) {
+    return this.refreshTokenRepository.delete({ user_id: uuid });
+  }
 }

@@ -10,7 +10,7 @@ export class UserDto implements User {
   public userUr: UserUrInfoDto | undefined;
   public imageUrl: string;
   public date: string;
-  roles: RoleDto[];
+  public roles: RoleDto[];
 }
 
 export class UserUrInfoDto implements UserUrInfo {

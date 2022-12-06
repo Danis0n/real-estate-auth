@@ -1,4 +1,13 @@
-import { LoginRequest, RegisterRequest } from '../proto/auth.pb';
+import {
+  AuthResponse,
+  LoginRequest,
+  LoginResponse,
+  LogoutRequest,
+  LogoutResponse,
+  RegisterRequest,
+  ValidateRequest,
+} from '../proto/auth.pb';
+import { UserDto } from './user.dto';
 
 export class RegisterRequestDto implements RegisterRequest {
   public readonly dateOfBirth: string;
@@ -16,3 +25,30 @@ export class LoginRequestDto implements LoginRequest {
   readonly login: string;
   readonly password: string;
 }
+
+export class LoginResponseDto implements LoginResponse {
+  accessToken: string;
+  error: string[];
+  refreshToken: string;
+  user: UserDto | undefined;
+}
+
+export class AuthResponseDto implements AuthResponse {
+  accessToken: string;
+  error: string;
+  refreshToken: string;
+  user: UserDto | undefined;
+}
+
+export class LogoutResponseDto implements LogoutResponse {
+  status: number;
+}
+
+export class LogoutRequestDto implements LogoutRequest {
+  accessToken: string;
+}
+
+export class ValidateRequestDto implements ValidateRequest {
+  token: string;
+}
+

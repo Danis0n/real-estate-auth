@@ -1,5 +1,1 @@
-export class AuthUtil {
-
-
-
-}
+export class AuthUtil {}
