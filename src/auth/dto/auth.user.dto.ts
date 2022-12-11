@@ -51,4 +51,3 @@ export class LogoutRequestDto implements LogoutRequest {
 export class ValidateRequestDto implements ValidateRequest {
   token: string;
 }
-

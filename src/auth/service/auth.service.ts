@@ -131,11 +131,16 @@ export class AuthService implements OnModuleInit {
   }
 
   public async validate(dto: ValidateRequestDto): Promise<ValidateResponse> {
-    const result: string = await this.jwtService.verifyToken(dto.token);
-    console.log(result);
+    const result: AtJwtPayload = await this.jwtService.verifyToken(dto.token);
+    if (result) {
+      return {
+        status: HttpStatus.OK,
+        error: null,
+      };
+    }
     return {
-      status: result == 'jwt expired' ? HttpStatus.UNAUTHORIZED : HttpStatus.OK,
-      error: [result],
+      status: HttpStatus.UNAUTHORIZED,
+      error: ['UNAUTHORIZED'],
     };
   }
 

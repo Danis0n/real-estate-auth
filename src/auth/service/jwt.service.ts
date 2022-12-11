@@ -46,7 +46,7 @@ export class JwtService {
         login: user.userLogin.login,
         roles: roles,
       },
-      { expiresIn: '15s' },
+      { expiresIn: '15m' },
     );
   }
 
@@ -60,9 +60,9 @@ export class JwtService {
 
   public verifyToken(token: string) {
     try {
-      this.jwt.verify(token, { ignoreExpiration: false });
+      return this.jwt.verify(token, { ignoreExpiration: false });
     } catch (err) {
-      return err.message;
+      console.log(err);
     }
   }
 }
