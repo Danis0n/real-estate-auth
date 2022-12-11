@@ -10,7 +10,7 @@ import {
 } from './proto/auth.pb';
 import { AuthService } from './service/auth.service';
 
-@Controller('auth')
+@Controller('refresh')
 export class AuthController {
   @Inject(AuthService)
   private readonly authService: AuthService;
@@ -26,8 +26,8 @@ export class AuthController {
   }
 
   @GrpcMethod(AUTH_SERVICE_NAME, 'Auth')
-  private async auth(payload): Promise<AuthResponse> {
-    return this.authService.auth(payload);
+  private async refresh(payload): Promise<AuthResponse> {
+    return this.authService.refresh(payload);
   }
 
   @GrpcMethod(AUTH_SERVICE_NAME, 'Validate')

@@ -96,7 +96,7 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  public async auth(dto: AuthRequest): Promise<AuthResponseDto> {
+  public async refresh(dto: AuthRequest): Promise<AuthResponseDto> {
     const token: RefreshToken = await this.refreshTokenRepo.findByTokenValue(
       dto.refreshToken,
     );
@@ -104,7 +104,7 @@ export class AuthService implements OnModuleInit {
       return this.response(null, null, null, 'Токен не существует');
 
     if (
-      this.jwtService.verifyToken(dto.refreshToken) == null &&
+      this.jwtService.verifyToken(dto.refreshToken) !== null &&
       dto.refreshToken === token.token
     ) {
       const userId: string = this.jwtService.decodeRToken(dto.refreshToken).id;
