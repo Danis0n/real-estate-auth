@@ -8,6 +8,7 @@ import {
   ValidateRequest,
 } from '../proto/auth.pb';
 import { UserDto } from './user.dto';
+import { IsString } from 'class-validator';
 
 export class RegisterRequestDto implements RegisterRequest {
   public readonly dateOfBirth: string;
@@ -22,15 +23,18 @@ export class RegisterRequestDto implements RegisterRequest {
 }
 
 export class LoginRequestDto implements LoginRequest {
+  @IsString()
   readonly login: string;
+  @IsString()
   readonly password: string;
 }
 
 export class LoginResponseDto implements LoginResponse {
   accessToken: string;
-  error: string[];
+  error: string;
   refreshToken: string;
   user: UserDto | undefined;
+  status: number;
 }
 
 export class AuthResponseDto implements AuthResponse {
@@ -45,9 +49,9 @@ export class LogoutResponseDto implements LogoutResponse {
 }
 
 export class LogoutRequestDto implements LogoutRequest {
-  accessToken: string;
+  readonly accessToken: string;
 }
 
 export class ValidateRequestDto implements ValidateRequest {
-  token: string;
+  readonly token: string;
 }

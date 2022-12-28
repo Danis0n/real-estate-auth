@@ -10,6 +10,8 @@ import {
   ValidateRequestDto,
 } from '../dto/auth.user.dto';
 import {
+  CheckUserResponse,
+  ConfirmAccountResponse,
   CreateUserResponse,
   FindOneUserResponse,
   GetHashedPasswordResponse,
@@ -26,15 +28,40 @@ import { JwtService } from './jwt.service';
 import { RefreshTokenMapper } from '../mapper/refresh.token.mapper';
 import { RoleMapper } from '../mapper/role.mapper';
 import { AtJwtPayload } from '../dto/jwt.dto';
-import { AuthRequest, AuthResponse, ValidateResponse } from '../proto/auth.pb';
+import {
+  AuthRequest,
+  ConfirmRequest,
+  ConfirmResponse,
+  RedirectRequest,
+  RedirectResponse,
+  RegisterResponse,
+  RestorePasswordRequest,
+  RestorePasswordResponse,
+  UpdatePasswordRequest,
+  UpdatePasswordResponse,
+  ValidateResponse,
+} from '../proto/auth.pb';
 import { RefreshToken } from '../entity/refresh.token.entity';
+import { PasswordToken } from '../entity/password.token.entity';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  EMAIL_SERVICE_NAME,
+  EmailServiceClient,
+  PasswordRestoreResponse,
+} from '../proto/email.pb';
+import { ConfirmationToken } from '../entity/confirmation.token.entity';
+import { AuthConfig } from '../config/auth-config';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
   private userSvc: UserServiceClient;
+  private emailSvc: EmailServiceClient;
 
   @Inject(USER_SERVICE_NAME)
-  private readonly client: ClientGrpc;
+  private readonly userClient: ClientGrpc;
+
+  @Inject(EMAIL_SERVICE_NAME)
+  private readonly emailClient: ClientGrpc;
 
   @Inject(JwtService)
   private readonly jwtService: JwtService;
@@ -55,19 +82,52 @@ export class AuthService implements OnModuleInit {
   public readonly refreshTokenRepo: RefreshTokenRepository;
 
   onModuleInit(): void {
-    this.userSvc = this.client.getService<UserServiceClient>(USER_SERVICE_NAME);
+    this.userSvc =
+      this.userClient.getService<UserServiceClient>(USER_SERVICE_NAME);
+    this.emailSvc =
+      this.emailClient.getService<EmailServiceClient>(EMAIL_SERVICE_NAME);
   }
 
-  public async register(dto: RegisterRequestDto) {
-    const candidate = await this.checkData(dto);
-    if (candidate)
-      return { error: [candidate], status: HttpStatus.BAD_REQUEST };
+  public async register(dto: RegisterRequestDto): Promise<RegisterResponse> {
+    const candidate: CheckUserResponse = await firstValueFrom(
+      this.userSvc.checkUser({
+        email: dto.email,
+        login: dto.login,
+        phone: dto.phone,
+      }),
+    );
+
+    if (candidate.status == HttpStatus.OK)
+      return { error: candidate.error, status: HttpStatus.BAD_REQUEST };
 
     dto.password = await bcrypt.hash(dto.password, 5);
     const response: CreateUserResponse = await firstValueFrom(
       this.userSvc.create(dto),
     );
-    return { error: ['none'], status: 200 };
+
+    if (response.user == null || response.status != HttpStatus.OK)
+      return {
+        error: 'Ошибка создания',
+        status: HttpStatus.BAD_REQUEST,
+      };
+
+    const confirmationToken: ConfirmationToken = new ConfirmationToken();
+    confirmationToken.token = uuidv4();
+
+    confirmationToken.createdAt = new Date();
+    confirmationToken.expiresAt = new Date(
+      confirmationToken.createdAt.getTime() + AuthConfig.TOKEN_LIVE_TIME,
+    );
+
+    confirmationToken.userId = response.user.id;
+    await this.confirmationTokenRepo.saveToken(confirmationToken);
+
+    return await firstValueFrom(
+      this.emailSvc.accountConfirm({
+        token: confirmationToken.token,
+        email: response.user.email,
+      }),
+    );
   }
 
   public async login(dto: LoginRequestDto): Promise<LoginResponseDto> {
@@ -77,22 +137,27 @@ export class AuthService implements OnModuleInit {
       }),
     );
     const user: UserDto = response.user;
-    if (user && (await this.validatePassword(dto))) {
+
+    if (user && (await this.validatePassword(dto)) && !user.userInfo.locked) {
       await this.refreshTokenRepo.deleteTokensByUser(user.id);
+
       const tokens: { accessToken; refreshToken } =
         await this.jwtService.generateTokens(user);
+
       return {
         user: user,
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         error: null,
+        status: HttpStatus.OK,
       };
     }
     return {
+      user: null,
       accessToken: null,
       refreshToken: null,
-      user: null,
-      error: ['Неверный пароль или логин'],
+      error: 'Неверный пароль или логин',
+      status: HttpStatus.UNAUTHORIZED,
     };
   }
 
@@ -101,27 +166,44 @@ export class AuthService implements OnModuleInit {
       dto.refreshToken,
     );
     if (token == null)
-      return this.response(null, null, null, 'Токен не существует');
+      return {
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+        error: 'Токен не существует',
+      };
 
     if (
       this.jwtService.verifyToken(dto.refreshToken) !== null &&
       dto.refreshToken === token.token
     ) {
       const userId: string = this.jwtService.decodeRToken(dto.refreshToken).id;
+
       const response: FindOneUserResponse = await firstValueFrom(
         this.userSvc.findById({ id: userId }),
       );
+      if (response.user.userInfo.locked) {
+        return {
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          error: 'Пользователь заблокирован!',
+        };
+      }
+
       await this.refreshTokenRepo.deleteTokensByUser(response.user.id);
+
       const tokens: { accessToken; refreshToken } =
         await this.jwtService.generateTokens(response.user);
-      return this.response(
-        tokens.accessToken,
-        tokens.refreshToken,
-        response.user,
-        null,
-      );
+
+      return {
+        user: response.user,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        error: null,
+      };
     }
-    return this.response(null, null, null, null);
+    return { accessToken: null, error: null, refreshToken: null, user: null };
   }
 
   public async logout(dto: LogoutRequestDto): Promise<LogoutResponseDto> {
@@ -132,56 +214,135 @@ export class AuthService implements OnModuleInit {
 
   public async validate(dto: ValidateRequestDto): Promise<ValidateResponse> {
     const result: AtJwtPayload = await this.jwtService.verifyToken(dto.token);
-    if (result) {
-      return {
-        status: HttpStatus.OK,
-        error: null,
-      };
-    }
-    return {
-      status: HttpStatus.UNAUTHORIZED,
-      error: ['UNAUTHORIZED'],
-    };
+
+    return !!result
+      ? {
+          status: HttpStatus.OK,
+          error: null,
+        }
+      : {
+          status: HttpStatus.UNAUTHORIZED,
+          error: 'Не авторизован',
+        };
   }
 
-  private async checkData(dto: RegisterRequestDto): Promise<string> {
+  public async restorePassword(
+    dto: RestorePasswordRequest,
+  ): Promise<RestorePasswordResponse> {
+    const potential: FindOneUserResponse = await firstValueFrom(
+      this.userSvc.findByLogin({ login: dto.username }),
+    );
+
+    if (potential.user == null || potential.user.email != dto.email) {
+      return {
+        error: 'Пользователь не был найден',
+        status: HttpStatus.NOT_FOUND,
+      };
+    }
+
+    const passwordToken: PasswordToken = new PasswordToken();
+    passwordToken.token = uuidv4();
+    passwordToken.createdAt = new Date();
+    passwordToken.expiresAt = new Date(
+      passwordToken.createdAt.getTime() + 60 * 60 * 24 * 1000,
+    );
+    passwordToken.userId = potential.user.id;
+    await this.passwordTokenRepo.saveToken(passwordToken);
+
+    const response: PasswordRestoreResponse = await firstValueFrom(
+      this.emailSvc.passwordRestore({
+        token: passwordToken.token,
+        email: dto.email,
+      }),
+    );
+
+    return { error: response.error, status: response.status };
+  }
+
+  public async redirectRestore(
+    dto: RedirectRequest,
+  ): Promise<RedirectResponse> {
+    const passwordToken: PasswordToken =
+      await this.passwordTokenRepo.findByTokenValue(dto.token);
+
     if (
-      !!(await firstValueFrom(this.userSvc.findByLogin({ login: dto.login })))
-        .user
-    )
-      return 'Пользователь с таким логином уже существует';
+      passwordToken == null ||
+      passwordToken.expiresAt.getTime() < new Date().getTime() ||
+      passwordToken.confirmedAt != null
+    ) {
+      return {
+        error: 'Токен не был найден или уже был использован',
+        status: HttpStatus.NOT_FOUND,
+        message: 'not-found',
+      };
+    }
+
+    const user: FindOneUserResponse = await firstValueFrom(
+      this.userSvc.findById({ id: passwordToken.userId }),
+    );
+
+    if (user.user == null) {
+      return {
+        error: 'Пользователь не был найден',
+        status: HttpStatus.BAD_REQUEST,
+        message: 'user-not-found',
+      };
+    }
+    return { error: null, status: HttpStatus.OK, message: null };
+  }
+
+  public async updatePassword(
+    dto: UpdatePasswordRequest,
+  ): Promise<UpdatePasswordResponse> {
+    const passwordToken: PasswordToken =
+      await this.passwordTokenRepo.findByTokenValue(dto.token);
+
+    passwordToken.confirmedAt = new Date();
+    await this.passwordTokenRepo.saveToken(passwordToken);
+
+    return await firstValueFrom(
+      this.userSvc.changePassword({
+        password: await bcrypt.hash(dto.password, 5),
+        uuid: passwordToken.userId,
+      }),
+    );
+  }
+
+  public async confirm(dto: ConfirmRequest): Promise<ConfirmResponse> {
+    const confirmationToken: ConfirmationToken =
+      await this.confirmationTokenRepo.findByTokenValue(dto.token);
     if (
-      !!(await firstValueFrom(this.userSvc.findByPhone({ phone: dto.phone })))
-        .user
-    )
-      return 'Пользователь с таким телефоном уже существует';
-    if (
-      !!(await firstValueFrom(this.userSvc.findByEmail({ email: dto.email })))
-        .user
-    )
-      return 'Пользователь с такой эл. почтой уже существует';
-    if (!!(await firstValueFrom(this.userSvc.findByInn({ inn: dto.inn }))).user)
-      return 'Пользователь с таким инн уже существует';
-    return null;
+      confirmationToken == null ||
+      confirmationToken.confirmedAt != null ||
+      confirmationToken.expiresAt.getTime() < new Date().getTime()
+    ) {
+      return {
+        message: 'notfound',
+        error: 'Токен не существует',
+        status: HttpStatus.NOT_FOUND,
+      };
+    }
+
+    const response: ConfirmAccountResponse = await firstValueFrom(
+      this.userSvc.confirmAccount({ uuid: confirmationToken.userId }),
+    );
+
+    if (response.status != HttpStatus.OK) {
+      return {
+        error: response.error,
+        message: 'fine',
+        status: response.status,
+      };
+    }
+    confirmationToken.confirmedAt = new Date();
+    await this.confirmationTokenRepo.saveToken(confirmationToken);
+    return { message: 'fine', error: null, status: HttpStatus.OK };
   }
 
   private async validatePassword(dto: LoginRequestDto) {
     const response: GetHashedPasswordResponse = await firstValueFrom(
       this.userSvc.getHashedPassword({ login: dto.login }),
     );
-    const passwordEquals = await bcrypt.compare(
-      dto.password,
-      response.password,
-    );
-    return passwordEquals;
-  }
-
-  private response(at: string, rt: string, user: UserDto, error: string) {
-    return {
-      accessToken: at,
-      refreshToken: rt,
-      user: user,
-      error: error,
-    };
+    return await bcrypt.compare(dto.password, response.password);
   }
 }

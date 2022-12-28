@@ -16,6 +16,7 @@ import { JwtService } from './service/jwt.service';
 import { RefreshTokenMapper } from './mapper/refresh.token.mapper';
 import { RoleMapper } from './mapper/role.mapper';
 import { JwtStrategy } from './strategy/jwt.strategy';
+import { EMAIL_PACKAGE_NAME, EMAIL_SERVICE_NAME } from './proto/email.pb';
 
 @Module({
   controllers: [AuthController],
@@ -40,6 +41,15 @@ import { JwtStrategy } from './strategy/jwt.strategy';
           url: '0.0.0.0:50052',
           package: USER_PACKAGE_NAME,
           protoPath: 'node_modules/proto-config/proto/user.proto',
+        },
+      },
+      {
+        name: EMAIL_SERVICE_NAME,
+        transport: Transport.GRPC,
+        options: {
+          url: '0.0.0.0:50055',
+          package: EMAIL_PACKAGE_NAME,
+          protoPath: 'node_modules/proto-config/proto/email.proto',
         },
       },
     ]),
