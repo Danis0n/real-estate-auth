@@ -6,6 +6,10 @@ import { RoleMapper } from '../mapper/role.mapper';
 import { RefreshTokenMapper } from '../mapper/refresh.token.mapper';
 import { RefreshTokenRepository } from '../repository/refresh.token.repository';
 import { AtJwtPayload, RtJwtPayload } from '../dto/jwt.dto';
+import {
+  JWT_ACCESS_TOKEN_LIVE_TIME,
+  JWT_REFRESH_TOKEN_LIVE_TIME,
+} from '../config/auth-constants';
 
 export class JwtService {
   @Inject(Jwt)
@@ -35,7 +39,7 @@ export class JwtService {
   public createRefreshToken(user: UserDto): string {
     return this.jwt.sign(
       { id: user.id, login: user.userLogin.login },
-      { expiresIn: '60d' },
+      { expiresIn: JWT_REFRESH_TOKEN_LIVE_TIME },
     );
   }
 
@@ -46,7 +50,7 @@ export class JwtService {
         login: user.userLogin.login,
         roles: roles,
       },
-      { expiresIn: '15m' },
+      { expiresIn: JWT_ACCESS_TOKEN_LIVE_TIME },
     );
   }
 

@@ -8,7 +8,6 @@ import { PasswordToken } from './entity/password.token.entity';
 import { ConfirmationTokenRepository } from './repository/confirmation.token.repository';
 import { RefreshTokenRepository } from './repository/refresh.token.repository';
 import { PasswordTokenRepository } from './repository/password.token.repository';
-import { AuthUtil } from './util/auth.util';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { USER_PACKAGE_NAME, USER_SERVICE_NAME } from './proto/user.pb';
 import { JwtModule } from '@nestjs/jwt';
@@ -25,7 +24,6 @@ import { EMAIL_PACKAGE_NAME, EMAIL_SERVICE_NAME } from './proto/email.pb';
     ConfirmationTokenRepository,
     RefreshTokenRepository,
     PasswordTokenRepository,
-    AuthUtil,
     JwtService,
     RefreshTokenMapper,
     RoleMapper,

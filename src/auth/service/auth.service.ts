@@ -50,7 +50,10 @@ import {
   PasswordRestoreResponse,
 } from '../proto/email.pb';
 import { ConfirmationToken } from '../entity/confirmation.token.entity';
-import { AuthConfig } from '../config/auth-config';
+import {
+  CONFIRMATION_TOKEN_LIVE_TIME,
+  RESTORE_TOKEN_LIVE_TIME,
+} from '../config/auth-constants';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -97,7 +100,7 @@ export class AuthService implements OnModuleInit {
       }),
     );
 
-    if (candidate.status == HttpStatus.OK)
+    if (candidate.status == HttpStatus.BAD_REQUEST)
       return { error: candidate.error, status: HttpStatus.BAD_REQUEST };
 
     dto.password = await bcrypt.hash(dto.password, 5);
@@ -113,10 +116,9 @@ export class AuthService implements OnModuleInit {
 
     const confirmationToken: ConfirmationToken = new ConfirmationToken();
     confirmationToken.token = uuidv4();
-
     confirmationToken.createdAt = new Date();
     confirmationToken.expiresAt = new Date(
-      confirmationToken.createdAt.getTime() + AuthConfig.TOKEN_LIVE_TIME,
+      confirmationToken.createdAt.getTime() + CONFIRMATION_TOKEN_LIVE_TIME,
     );
 
     confirmationToken.userId = response.user.id;
@@ -244,7 +246,7 @@ export class AuthService implements OnModuleInit {
     passwordToken.token = uuidv4();
     passwordToken.createdAt = new Date();
     passwordToken.expiresAt = new Date(
-      passwordToken.createdAt.getTime() + 60 * 60 * 24 * 1000,
+      passwordToken.createdAt.getTime() + RESTORE_TOKEN_LIVE_TIME,
     );
     passwordToken.userId = potential.user.id;
     await this.passwordTokenRepo.saveToken(passwordToken);
@@ -317,7 +319,7 @@ export class AuthService implements OnModuleInit {
       confirmationToken.expiresAt.getTime() < new Date().getTime()
     ) {
       return {
-        message: 'notfound',
+        message: 'not-found',
         error: 'Токен не существует',
         status: HttpStatus.NOT_FOUND,
       };
@@ -330,7 +332,7 @@ export class AuthService implements OnModuleInit {
     if (response.status != HttpStatus.OK) {
       return {
         error: response.error,
-        message: 'fine',
+        message: 'not-fine',
         status: response.status,
       };
     }
