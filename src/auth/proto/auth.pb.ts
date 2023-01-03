@@ -110,6 +110,7 @@ export interface RegisterRequest {
   dateOfBirth: string;
   inn: string;
   link: string;
+  role: string;
 }
 
 export interface RegisterResponse {
@@ -137,6 +138,7 @@ export interface ValidateRequest {
 export interface ValidateResponse {
   status: number;
   error: string;
+  roles: string[];
 }
 
 export const AUTH_PACKAGE_NAME = "auth";

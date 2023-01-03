@@ -9,7 +9,7 @@ export class RefreshToken extends BaseEntity {
   public token!: string;
 
   @Column({ name: 'user_id', nullable: false, type: 'uuid' })
-  public user_id!: string;
+  public userId!: string;
 
   @Column({ name: 'date_of_created', nullable: false, type: 'timestamp' })
   public creationDate!: Date;

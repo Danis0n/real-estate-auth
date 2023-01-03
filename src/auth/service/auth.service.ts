@@ -221,10 +221,12 @@ export class AuthService implements OnModuleInit {
       ? {
           status: HttpStatus.OK,
           error: null,
+          roles: result.roles,
         }
       : {
           status: HttpStatus.UNAUTHORIZED,
           error: 'Не авторизован',
+          roles: null,
         };
   }
 
@@ -303,9 +305,9 @@ export class AuthService implements OnModuleInit {
     await this.passwordTokenRepo.saveToken(passwordToken);
 
     return await firstValueFrom(
-      this.userSvc.changePassword({
+      this.userSvc.updatePassword({
         password: await bcrypt.hash(dto.password, 5),
-        uuid: passwordToken.userId,
+        UUID: passwordToken.userId,
       }),
     );
   }
@@ -326,7 +328,7 @@ export class AuthService implements OnModuleInit {
     }
 
     const response: ConfirmAccountResponse = await firstValueFrom(
-      this.userSvc.confirmAccount({ uuid: confirmationToken.userId }),
+      this.userSvc.confirmAccount({ UUID: confirmationToken.userId }),
     );
 
     if (response.status != HttpStatus.OK) {

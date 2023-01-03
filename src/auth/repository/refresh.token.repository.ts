@@ -15,6 +15,6 @@ export class RefreshTokenRepository {
   }
 
   public async deleteTokensByUser(uuid: string) {
-    return this.refreshTokenRepository.delete({ user_id: uuid });
+    return this.refreshTokenRepository.delete({ userId: uuid });
   }
 }

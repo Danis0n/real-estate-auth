@@ -4,7 +4,7 @@ export class RefreshTokenMapper {
   public mapToNewRefreshToken(token: string, id: string): RefreshToken {
     const refreshToken: RefreshToken = new RefreshToken();
     refreshToken.creationDate = new Date();
-    refreshToken.user_id = id;
+    refreshToken.userId = id;
     refreshToken.token = token;
     return refreshToken;
   }

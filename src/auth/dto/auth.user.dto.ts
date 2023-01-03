@@ -20,6 +20,7 @@ export class RegisterRequestDto implements RegisterRequest {
   public password: string;
   public readonly phone: string;
   public readonly link: string;
+  public readonly role: string;
 }
 
 export class LoginRequestDto implements LoginRequest {
